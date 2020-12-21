@@ -22,6 +22,14 @@ def load_linker():
     linker = EntityLinker(resolve_abbreviations=True, name="umls")
     return linker
 
+@st.cache
+def load_sem_types():
+    path = 'https://metamap.nlm.nih.gov/Docs/SemanticTypes_2018AB.txt'
+    sem_types = pd.read_csv(path, delimiter='|', names=['abrev', 'tui', 'desc'])
+    return sem_types[['tui', 'desc']].set_index('tui').to_dict()['desc']
+
+
+sem_types = load_sem_types()
 
 nlp = load_model()
 linker = load_linker()
@@ -36,7 +44,7 @@ def label_ents_by_tui(doc):
         try:
             cui = ent._.umls_ents[0][0]
             tui = linker.kb.cui_to_entity[cui][3][0]
-            new_ent = Span(doc, ent.start, ent.end, label=tui)
+            new_ent = Span(doc, ent.start, ent.end, label=sem_types[tui])
             new_ents.append(new_ent)
         except:
             new_label = 'other'
@@ -69,12 +77,12 @@ doc = nlp(text)
 
 html = displacy.render(
     doc, style="ent",
-    # options={
-    #     "ents": ['FINDING', 'DISEASE OR SYNDROME',
-    #              'SIGN OR SYMPTOM', 'PATHOLOGIC FUNCTION', 'NEOPLASTIC PROCESS', 'OTHER'],
-    #     "colors": {'FINDING': '#D0ECE7', 'DISEASE OR SYNDROME': '#D6EAF8',
-    #                'SIGN OR SYMPTOM': '#E8DAEF', 'PATHOLOGIC FUNCTION': '#FADBD8', 'NEOPLASTIC PROCESS': '#DAF7A6'}
-    # }
+    options={
+        "ents": ['FINDING', 'DISEASE OR SYNDROME',
+                 'SIGN OR SYMPTOM', 'PATHOLOGIC FUNCTION', 'NEOPLASTIC PROCESS', 'OTHER'],
+        "colors": {'FINDING': '#D0ECE7', 'DISEASE OR SYNDROME': '#D6EAF8',
+                   'SIGN OR SYMPTOM': '#E8DAEF', 'PATHOLOGIC FUNCTION': '#FADBD8', 'NEOPLASTIC PROCESS': '#DAF7A6'}
+    }
 )
 style = "<style>mark.entity { display: inline-block }</style>"
 st.write(f"{style}{get_html(html)}", unsafe_allow_html=True)
