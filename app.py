@@ -13,23 +13,28 @@ from scispacy.linking import EntityLinker
 
 
 @st.cache(allow_output_mutation=True, suppress_st_warning=True)
-def load_model(name):
-    return spacy.load(name)
+def load_model():
+    nlp = spacy.load('en_core_sci_sm')
+    return nlp
+
+@st.cache(allow_output_mutation=True, suppress_st_warning=True)
+def load_linker():
+    linker = EntityLinker(resolve_abbreviations=True, name="umls")
+    return linker
 
 
-spacy_model = 'en_core_sci_sm'
-nlp = load_model(spacy_model)
-linker = EntityLinker(resolve_abbreviations=True, name="umls")
-nlp.add_pipe(linker)
-
-
+nlp = load_model()
+linker = load_linker()
+try:
+    nlp.add_pipe(linker)
+except:
+    st.write('')
 
 def label_ents_by_tui(doc):
     new_ents = []
     for ent in doc.ents:
         try:
             cui = ent._.umls_ents[0][0]
-            umls_ent = linker.kb.cui_to_entity[cui]
             tui = linker.kb.cui_to_entity[cui][3][0]
             new_ent = Span(doc, ent.start, ent.end, label=tui)
             new_ents.append(new_ent)
@@ -40,11 +45,12 @@ def label_ents_by_tui(doc):
     doc.ents = new_ents
     return doc
 
-
 try:
-    nlp.add_pipe(label_ents_by_tui, after='ner')
+    nlp.add_pipe(label_ents_by_tui)
 except:
     st.write('')
+
+
 
 text = st.text_area(
     'Text', "Past medical history includes hypertension, dyslipidemia and diabetes, and a family history of coronary artery disease. He started having chest pain 4 hours ago, associated with dyspnea, nausea, and diaphoresis.")
